@@ -1,0 +1,134 @@
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(caret)
+library(e1071)
+library(randomForest)
+library(glmnet)
+
+
+school_model <- read.csv('student-mat.csv',stringsAsFactors = TRUE)
+school2 <- read.csv('student-por.csv',stringsAsFactors = TRUE)
+schools=rbind(school_model,school2)
+
+# Preprocessing
+schools <- data.frame(sapply(schools, unclass))
+schools <- data.frame(sapply(schools, as.numeric))
+schools <- na.omit(schools)
+
+# Correlation Pot
+corrplot::corrplot(cor(schools))
+
+# Removing G1 and G2 because strongly correlated with G3.
+schools <- subset(schools, select = -c(G1,G2))
+
+str(schools)
+ncol(schools)
+
+X <- as.matrix(schools[,-33])
+Y <- schools[,33]
+# Applying Lasso Regression to find best features
+fplasso <- glmnet(X, Y, lambda=0.01, 
+                  family="gaussian", 
+                  intercept = F, alpha=1) 
+
+# Select features with coefficients > 0.
+coef(fplasso, s = "lambda.min")
+
+schools_1 <- schools[,c("sex","age","higher","G3")]
+head(schools_1)
+
+set.seed(123)
+sample_size <- floor(0.70 * nrow(schools_1))
+train_ind <- sample(seq_len(nrow(schools_1)), size = sample_size)
+
+train <- schools_1[train_ind, ]
+test <- schools_1[-train_ind, ]
+
+head(train)
+head(test)
+
+# Linear Regression Model
+l_model <- lm(formula = G3 ~ ., data = train)
+predictions <- predict(l_model, test)
+evaluation_schools <- data.frame(test$G3,predictions)
+rss <- sum((predictions - test$G3) ^ 2)  
+tss <- sum((test$G3 - mean(test$G3)) ^ 2) 
+rsquared <- 1 - rss/tss
+result <- paste0('R2 = ',format(rsquared, 2))
+print(result)
+l_model
+
+# Random Forest
+rf_model_model <- randomForest(G3 ~ ., data = train)
+predictions <- predict(rf_model, test)
+evaluation_schools <- data.frame(test$G3,predictions)
+rss <- sum((predictions - test$G3) ^ 2)  
+tss <- sum((test$G3 - mean(test$G3)) ^ 2) 
+rsquared <- 1 - rss/tss
+result <- paste0('R2 = ',format(rsquared, 2))
+print(result)
+rf_model
+
+
+# SVM
+svm_model<- svm(G3 ~ .,method = "anova", data = train)
+predictions <- predict(svm_model, test)
+evaluation_schools <- data.frame(test$G3,predictions)
+rss <- sum((predictions - test$G3) ^ 2)
+tss <- sum((test$G3 - mean(test$G3)) ^ 2)  
+rsquared <- 1 - rss/tss
+result <- paste0('R2 = ',format(rsquared, 2))
+print(result)
+svm_model
+
+
+# Modeling on All Features
+
+set.seed(123)
+sample_size <- floor(0.70 * nrow(schools))
+train_ind <- sample(seq_len(nrow(schools)), size = sample_size)
+
+train <- schools[train_ind, ]
+test <- schools[-train_ind, ]
+
+head(train)
+head(test)
+
+# Linear Regression Model
+l_model <- lm(formula = G3 ~ ., data = train)
+predictions <- predict(l_model, test)
+evaluation_schools <- data.frame(test$G3,predictions)
+rss <- sum((predictions - test$G3) ^ 2)  # residual sum of squares
+tss <- sum((test$G3 - mean(test$G3)) ^ 2)  # total sum of squares
+rsquared <- 1 - rss/tss
+result <- paste0('R2 = ',format(rsquared, 2))
+print(result)
+print(l_model)
+
+# Random Forest
+rf_model <- randomForest(G3 ~ ., data = train)
+predictions <- predict(rf_model, test)
+evaluation_schools <- data.frame(test$G3,predictions)
+rss <- sum((predictions - test$G3) ^ 2)  # residual sum of squares
+tss <- sum((test$G3 - mean(test$G3)) ^ 2)  # total sum of squares
+rsquared <- 1 - rss/tss
+result <- paste0('R2 = ',format(rsquared, 2))
+print(result)
+print(rf_model)
+
+
+# Support Vector Machine
+svm_model<- svm(G3 ~ .,method = "anova", data = train)
+predictions <- predict(svm_model, test)
+evaluation_schools <- data.frame(test$G3,predictions)
+rss <- sum((predictions - test$G3) ^ 2)  # residual sum of squares
+tss <- sum((test$G3 - mean(test$G3)) ^ 2)  # total sum of squares
+rsquared <- 1 - rss/tss
+result <- paste0('R2 = ',format(rsquared, 2))
+print(result)
+print(svm_model)
+
+
+
+

@@ -1,0 +1,61 @@
+library(dplyr)
+library(ggplot2) 
+library(tidyverse)
+library(factoextra)
+library(ggfortify)
+library(ISLR)
+library(cluster)
+
+
+# Reading and Preprocessing
+ewcs <- read.csv('EWCS_2016.csv',header=TRUE)
+ewcs[,][ewcs[, ,] ==-999] <-NA
+kk=complete.cases(ewcs)
+ewcs=ewcs[kk,]
+
+# EDA
+head(ewcs)
+str(ewcs)
+
+# Plots
+correlations <- cor(ewcs)
+heatmap(correlations)
+
+
+ggplot(gather(ewcs[-c(1,2)]), aes(value)) + 
+  geom_histogram(stat="count", fill="red")+
+  facet_wrap(~key, scales = 'free_x') + 
+  xlab("Values") + 
+  ylab("Count")
+
+
+scaled.ewcs <- scale(ewcs)
+
+library(fpc)
+pamk.best <- pamk(scaled.ewcs)
+cat("Number of Clusters", pamk.best$nc, "\n")
+plot(pam(scaled.ewcs, pamk.best$nc))
+
+
+# Kmeans Model
+set.seed(2020)
+kmeans_model = kmeans(scaled.ewcs, centers = 2)
+
+observation_counts <- table(kmeans_model$cluster)
+print(paste0("Cluster 1 Observations: ", observation_counts[1][1]))
+print(paste0("Cluster 2 Observations: ", observation_counts[2][1]))
+
+# Individual Variable Means for Both Clusters.
+ewcs %>% 
+  mutate(Cluster = kmeans_model$cluster) %>% 
+  group_by(Cluster) %>% 
+  summarise_all("mean")
+
+# K means Autoplot
+autoplot(kmeans_model, scaled.ewcs)
+
+# Significance Testing
+c1 = subset(ewcs, kmeans_model$cluster==1)
+c2 = subset(ewcs, kmeans_model$cluster==2)
+chisq.test(as.matrix(table(c1$Q90f)), p=as.vector(prop.table(table(c2$Q90f)))) 
+
